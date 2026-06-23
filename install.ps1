@@ -34,7 +34,7 @@ node (Join-Path $dir "bin\install.js")
 
 # 'cockpit' command shim so `cockpit update` works in new terminals
 $shim = Join-Path $dir "cockpit.cmd"
-"@echo off`r`nnode `"%~dp0bin\update.js`" %*" | Out-File -FilePath $shim -Encoding ascii -Force
+"@echo off`r`nnode `"%~dp0bin\cockpit.js`" %*" | Out-File -FilePath $shim -Encoding ascii -Force
 $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
 if ($userPath -notlike "*$dir*") {
   [Environment]::SetEnvironmentVariable("Path", "$userPath;$dir", "User")

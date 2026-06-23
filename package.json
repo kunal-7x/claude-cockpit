@@ -1,0 +1,51 @@
+{
+  "name": "claude-cockpit",
+  "version": "0.1.0",
+  "description": "The buttery, modular power-suite for Claude Code — live status line (real tokens & limits), voice alerts, instant image paste, neon terminal, in-terminal file browser, and 18 slash commands. One command to install, one to update.",
+  "bin": {
+    "cockpit": "bin/cockpit.js"
+  },
+  "scripts": {
+    "doctor": "node bin/doctor.js",
+    "test": "node --check bin/install.js && node --check src/statusline.js && echo ok"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "license": "MIT",
+  "author": "Kunal Kumar (@kunal-7x)",
+  "homepage": "https://github.com/kunal-7x/claude-cockpit#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kunal-7x/claude-cockpit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kunal-7x/claude-cockpit/issues"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "anthropic",
+    "statusline",
+    "status-line",
+    "cli",
+    "dotfiles",
+    "productivity",
+    "terminal",
+    "developer-tools",
+    "ai",
+    "llm",
+    "context-window",
+    "tokens"
+  ],
+  "files": [
+    "bin",
+    "src",
+    "branding",
+    "config.example.json",
+    "install.ps1",
+    "install.sh",
+    "README.md",
+    "LICENSE"
+  ]
+}

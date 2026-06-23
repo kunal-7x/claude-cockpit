@@ -29,6 +29,6 @@ node "$DIR/bin/install.js"
 
 # 'cockpit' command shim
 SHIM="$DIR/cockpit"
-printf '#!/usr/bin/env sh\nnode "%s/bin/update.js" "$@"\n' "$DIR" > "$SHIM"
+printf '#!/usr/bin/env sh\nnode "%s/bin/cockpit.js" "$@"\n' "$DIR" > "$SHIM"
 chmod +x "$SHIM"
 echo "  Tip: add ~/.cockpit to your PATH to use the 'cockpit' command, or run: node ~/.cockpit/bin/update.js"
