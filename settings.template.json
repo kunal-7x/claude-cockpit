@@ -1,0 +1,25 @@
+{
+  "$note": "REFERENCE ONLY. The installer MERGES these keys into your ~/.claude/settings.json — it never overwrites your file, and your existing settings/secrets are preserved (a .cockpit-backup is written). Real values for <node> and <claude-home> are filled in at install time. Hooks shown are the Windows (PowerShell) set.",
+
+  "statusLine": {
+    "type": "command",
+    "command": "\"<node>\" \"<claude-home>/statusline.js\"",
+    "refreshInterval": 1
+  },
+
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "", "hooks": [ { "type": "command", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"<claude-home>/hooks/safety-guard.ps1\"" } ] }
+    ],
+    "Stop": [
+      { "hooks": [ { "type": "command", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"<claude-home>/hooks/sound-smart.ps1\"" } ] }
+    ],
+    "Notification": [
+      { "hooks": [ { "type": "command", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"<claude-home>/hooks/sound-needyou.ps1\"" } ] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [ { "type": "command", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"<claude-home>/hooks/prompt-timer.ps1\"" } ] },
+      { "hooks": [ { "type": "command", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"<claude-home>/hooks/clip-attach.ps1\"" } ] }
+    ]
+  }
+}

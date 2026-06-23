@@ -1,0 +1,24 @@
+{
+  "_note": "Your status-line control panel. true = show, false = hide. Say '/ui ...' in plain English and Claude edits this for you.",
+  "show": {
+    "dir": true,
+    "branch": true,
+    "model": true,
+    "effort": true,
+    "ctx": true,
+    "ctxCap": true,
+    "bars": true,
+    "limit5h": true,
+    "limit7d": true,
+    "resets": false,
+    "cost": false,
+    "burn": false,
+    "timer": true,
+    "clock": true,
+    "clockSeconds": true,
+    "edits": true,
+    "pills": true
+  },
+  "compressImages": true,
+  "maxImageDim": 1280
+}

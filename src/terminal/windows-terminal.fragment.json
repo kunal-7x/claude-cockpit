@@ -1,0 +1,59 @@
+{
+  "_comment": "Merged into your Windows Terminal settings by the installer. Adds a color scheme, two profiles and one keybinding. It does NOT change your default profile. Tokens are substituted at install time.",
+  "schemes": [
+    {
+      "name": "Cockpit Night",
+      "background": "#0C0F1A",
+      "foreground": "#C6D0F5",
+      "black": "#0C0F1A",
+      "red": "#FF757F",
+      "green": "#C3E88D",
+      "yellow": "#FFC777",
+      "blue": "#82AAFF",
+      "purple": "#C792EA",
+      "cyan": "#86E1FC",
+      "white": "#C6D0F5",
+      "brightBlack": "#7680AA",
+      "brightRed": "#FF757F",
+      "brightGreen": "#C3E88D",
+      "brightYellow": "#FFC777",
+      "brightBlue": "#82AAFF",
+      "brightPurple": "#C792EA",
+      "brightCyan": "#86E1FC",
+      "brightWhite": "#FFFFFF",
+      "cursorColor": "#FFB454",
+      "selectionBackground": "#2D3F76"
+    }
+  ],
+  "profiles": [
+    {
+      "name": "✨ Claude Code",
+      "guid": "{ac1d0000-1111-2222-3333-444455556666}",
+      "commandline": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"{{CLAUDE_HOME}}/claude-launch.ps1\"",
+      "startingDirectory": "{{HOME}}",
+      "icon": "✨",
+      "colorScheme": "Cockpit Night",
+      "font": { "face": "Cascadia Code", "size": 11.0 },
+      "opacity": 75,
+      "useAcrylic": true,
+      "padding": "16",
+      "cursorShape": "filledBox",
+      "antialiasingMode": "cleartype",
+      "bellStyle": "none"
+    },
+    {
+      "name": "📁 Files",
+      "guid": "{ac1d0002-1111-2222-3333-444455556666}",
+      "commandline": "powershell.exe -NoExit -Command yazi",
+      "startingDirectory": "{{HOME}}",
+      "icon": "📁",
+      "colorScheme": "Cockpit Night",
+      "font": { "face": "Cascadia Code", "size": 11.0 },
+      "opacity": 92,
+      "useAcrylic": false
+    }
+  ],
+  "keybindings": [
+    { "keys": "ctrl+shift+e", "command": { "action": "splitPane", "split": "right", "size": 0.4, "startingDirectory": "{{HOME}}", "commandline": "powershell.exe -NoExit -Command yazi" } }
+  ]
+}

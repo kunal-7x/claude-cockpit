@@ -1,0 +1,48 @@
+{
+  "//": "Claude Cockpit config. The installer copies this to ~/.claude/cockpit.config.json. Edit it any time, then run `cockpit update` (or /cockpit inside Claude) to apply. Set a feature to false to skip it.",
+
+  "brand": {
+    "name": "Claude Cockpit",
+    "tagline": "Supercharged Claude Code",
+    "logoFile": "branding/logo.txt",
+    "company": "FAMIT",
+    "showCompanyCredit": true
+  },
+
+  "features": {
+    "statusline": true,
+    "sounds": true,
+    "voice": true,
+    "clipboardImage": true,
+    "banner": true,
+    "terminalTheme": true,
+    "fileBrowser": true,
+    "commands": true,
+    "agents": true,
+    "outputStyles": true,
+    "safetyGuard": true
+  },
+
+  "statusline": {
+    "tokensCap": 1000000,
+    "show": {
+      "model": true,
+      "effort": true,
+      "ctx": true,
+      "ctxCap": true,
+      "bars": true,
+      "limit5h": true,
+      "limit7d": true,
+      "resets": false,
+      "cost": false,
+      "burn": false,
+      "timer": true,
+      "clock": true,
+      "clockSeconds": true,
+      "edits": true,
+      "dir": true,
+      "branch": true,
+      "pills": true
+    }
+  }
+}

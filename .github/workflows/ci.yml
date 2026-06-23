@@ -1,0 +1,139 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Validate JSON files
+        run: |
+          node -e "
+          const fs = require('fs');
+          const path = require('path');
+
+          function walkDir(dir) {
+            const entries = fs.readdirSync(dir, { withFileTypes: true });
+            for (const entry of entries) {
+              const fullPath = path.join(dir, entry.name);
+              if (entry.isDirectory()) {
+                if (entry.name === 'node_modules' || entry.name === '.git') continue;
+                walkDir(fullPath);
+              } else if (entry.name.endsWith('.json')) {
+                try {
+                  const content = fs.readFileSync(fullPath, 'utf8');
+                  JSON.parse(content);
+                  console.log('OK:', fullPath);
+                } catch (err) {
+                  console.error('FAIL:', fullPath, '-', err.message);
+                  process.exit(1);
+                }
+              }
+            }
+          }
+
+          walkDir('.');
+          console.log('All JSON files are valid.');
+          "
+
+      - name: Syntax-check bin/*.js
+        run: |
+          node -e "
+          const fs = require('fs');
+          const path = require('path');
+          const { execFileSync } = require('child_process');
+
+          const binDir = path.join('.', 'bin');
+          if (!fs.existsSync(binDir)) {
+            console.log('No bin/ directory found, skipping.');
+            process.exit(0);
+          }
+
+          const files = fs.readdirSync(binDir).filter(f => f.endsWith('.js'));
+          if (files.length === 0) {
+            console.log('No .js files in bin/, skipping.');
+            process.exit(0);
+          }
+
+          for (const file of files) {
+            const fullPath = path.join(binDir, file);
+            try {
+              execFileSync(process.execPath, ['--check', fullPath], { stdio: 'inherit' });
+              console.log('OK:', fullPath);
+            } catch {
+              console.error('Syntax error in:', fullPath);
+              process.exit(1);
+            }
+          }
+          "
+
+      - name: Syntax-check src/statusline.js
+        run: |
+          node -e "
+          const fs = require('fs');
+          const path = require('path');
+          const { execFileSync } = require('child_process');
+
+          const target = path.join('.', 'src', 'statusline.js');
+          if (!fs.existsSync(target)) {
+            console.log('src/statusline.js not found, skipping.');
+            process.exit(0);
+          }
+
+          try {
+            execFileSync(process.execPath, ['--check', target], { stdio: 'inherit' });
+            console.log('OK:', target);
+          } catch {
+            console.error('Syntax error in:', target);
+            process.exit(1);
+          }
+          "
+
+      - name: Sandbox install
+        run: |
+          node -e "
+          const os = require('os');
+          const path = require('path');
+          const { execFileSync } = require('child_process');
+          const fs = require('fs');
+
+          const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cockpit-ci-'));
+          console.log('Sandbox config dir:', tmpDir);
+
+          const env = {
+            ...process.env,
+            COCKPIT_SANDBOX: '1',
+            CLAUDE_CONFIG_DIR: tmpDir,
+          };
+
+          try {
+            execFileSync(process.execPath, [path.join('.', 'bin', 'install.js')], {
+              env,
+              stdio: 'inherit',
+            });
+            console.log('Sandbox install exited 0 - OK');
+          } catch (err) {
+            console.error('Sandbox install failed with exit code:', err.status);
+            process.exit(1);
+          } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+          }
+          "

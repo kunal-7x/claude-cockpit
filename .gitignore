@@ -1,0 +1,43 @@
+# ── Secrets — NEVER commit ────────────────────────────────
+.env
+*.env
+env.txt
+*.pem
+*.key
+*token*
+*secret*
+*credential*
+id_rsa*
+
+# Claude Code settings (may contain tokens) — we ship settings.template.json instead
+settings.json
+settings.local.json
+*.cockpit-backup
+
+# Local user config (created from config.example.json)
+config.json
+cockpit.config.json
+
+# Status-line diagnostics / transcripts
+.sl-input.json
+.sl-error.log
+.statusline-*.json
+.statusline-*.log
+
+# Dependencies / build / logs
+node_modules/
+*.log
+dist/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+
+# Build / scratch notes (never ship)
+STATE.md
+WORKLOG.md
+*_BUILD_STATE.md
+COCKPIT_BUILD_STATE.md
