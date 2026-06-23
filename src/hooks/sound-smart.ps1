@@ -2,7 +2,17 @@
 # Logs every invocation to sound.log so we can verify it actually fires.
 $ErrorActionPreference = 'SilentlyContinue'
 $log = Join-Path $env:USERPROFILE ".claude\sound.log"
-function Log($m) { try { Add-Content -Path $log -Value ("{0}  {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $m) -Encoding utf8 } catch {} }
+$LOG_MAX_BYTES = 256KB
+function Log($m) {
+  try {
+    if ((Test-Path $log) -and (Get-Item $log).Length -gt $LOG_MAX_BYTES) {
+      $tail = Get-Content $log -Tail 50 -Encoding utf8 -ErrorAction SilentlyContinue
+      $header = "# log trimmed $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') (exceeded 256 KB)"
+      ($header + "`n" + ($tail -join "`n")) | Set-Content $log -Encoding utf8 -ErrorAction SilentlyContinue
+    }
+    Add-Content -Path $log -Value ("{0}  {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $m) -Encoding utf8
+  } catch {}
+}
 
 $sid = 'default'; $transcript = $null
 try {

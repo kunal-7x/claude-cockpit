@@ -4,7 +4,7 @@
 
 ### The setup that makes Claude Code feel like a cockpit, not a chat box.
 
-**A live status line that shows real tokens · sound + voice alerts · paste screenshots straight in · a neon terminal · an in-terminal file browser · 19 pro commands — installed in one command, fully yours to rebrand, and updated with one more.**
+**A live status line that shows real tokens · sound + voice alerts · paste screenshots straight in · a neon terminal · an in-terminal file browser · 20 pro commands — installed in one command, fully yours to rebrand, and updated with one more.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-c792ea.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%C2%B7%20macOS%20%C2%B7%20Linux-82aaff.svg)](#install)
@@ -47,7 +47,7 @@ curl -fsSL https://raw.githubusercontent.com/kunal-7x/claude-cockpit/main/instal
 | 📋 | **Paste screenshots inline** | Copy any image → **Ctrl+V** → it's attached. Auto-downscaled to save tokens. No command, no "what do you see". |
 | 🎨 | **Neon terminal** | A tuned "Cockpit Night" theme + glass terminal + a branded welcome banner — only for Claude Code, not your other terminals. |
 | 🗂️ | **In-terminal file browser** | **Ctrl+Shift+E** opens a visual file tree beside Claude (yazi + micro) — browse, open, edit, save, search. No IDE. |
-| ⚡ | **19 pro commands** | `/ui` `/powers` `/files` `/find` `/fix` `/ship` `/save` `/brief` `/eli5` `/health` `/spend` `/unstuck` … |
+| ⚡ | **20 pro commands** | `/ui` `/powers` `/files` `/find` `/fix` `/ship` `/save` `/brief` `/eli5` `/health` `/spend` `/unstuck` `/dashboard` `/cockpit` … |
 | 🧩 | **Agents + output styles** | A plain-English `/explainer` agent and a "Founder Mode" output style. |
 | 🛡️ | **Safety guard** | A hook that blocks catastrophic commands (`rm -rf /`, force-push to main, deleting your config…). |
 
@@ -103,9 +103,9 @@ node ~/.cockpit/bin/uninstall.js     # restores your settings backup and removes
 | Feature | Windows | macOS / Linux |
 |---|:---:|:---:|
 | Status line · commands · agents · output styles | ✅ | ✅ |
-| Sounds · voice · clipboard · banner · terminal theme · file browser | ✅ | 🔜 |
+| Sounds · voice · clipboard · banner · terminal theme · file browser · safety guard | ✅ | 🔜 |
 
-The universal parts (the status line alone is worth it) work everywhere; the rich Windows experience is first-class today, with macOS/Linux parity on the roadmap. PRs welcome.
+**Windows = full experience today.** macOS/Linux get the status line, all 20 commands, agents, and output styles — the rich audio/visual/clipboard features are Windows-first, with cross-platform parity on the roadmap. PRs welcome.
 
 ## 🤝 Contributing
 

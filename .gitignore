@@ -7,12 +7,19 @@ env.txt
 *token*
 *secret*
 *credential*
+*.pat
+*.pfx
+*.p12
+*.cer
+*.crt
 id_rsa*
+id_ed25519*
 
 # Claude Code settings (may contain tokens) — we ship settings.template.json instead
 settings.json
 settings.local.json
 *.cockpit-backup
+*.cockpit-tmp
 
 # Local user config (created from config.example.json)
 config.json

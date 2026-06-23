@@ -14,7 +14,11 @@ try {
   if ($cfg.brand.tagline) { $tagline  = $cfg.brand.tagline }
   if ($cfg.brand.company) { $company  = $cfg.brand.company }
   if ($null -ne $cfg.brand.showCompanyCredit) { $showCredit = [bool]$cfg.brand.showCompanyCredit }
-  if ($cfg.brand.logoFile){ $logoFile = Join-Path $ccHome $cfg.brand.logoFile }
+  if ($cfg.brand.logoFile){
+    $lf = [string]$cfg.brand.logoFile
+    # only allow a safe relative path under the Claude home (no absolute, no drive, no traversal)
+    if ($lf -notmatch '^[\\/]' -and $lf -notmatch ':' -and $lf -notmatch '\.\.') { $logoFile = Join-Path $ccHome $lf }
+  }
 } catch {}
 
 $grad  = @("$E[38;2;134;225;252m","$E[38;2;130;170;255m","$E[38;2;150;160;255m","$E[38;2;170;150;240m","$E[38;2;199;146;234m","$E[38;2;199;146;234m")

@@ -2,11 +2,13 @@
 "use strict";
 /*
  * Claude Cockpit installer — cross-platform, zero dependencies.
- * Installs ONLY the features enabled in config.json into your Claude config dir,
- * substitutes branding + path tokens, and SAFE-MERGES settings.json (your existing
- * settings, tokens and hooks are preserved; a backup is written).
+ * Installs ONLY the features enabled in your config into your Claude config dir,
+ * substitutes branding + path tokens, and SAFE-MERGES settings.json: your existing
+ * settings, tokens and hooks are preserved; a ONE-TIME backup is written; and if your
+ * settings.json can't be parsed the merge is ABORTED rather than overwriting it.
  *
- * Usage:  node bin/install.js
+ * Usage:  node bin/install.js [--dry-run]
+ *   --dry-run  print every change it WOULD make, without writing anything.
  */
 const fs = require("fs");
 const os = require("os");
@@ -18,17 +20,45 @@ const HOME = os.homedir();
 const CLAUDE_HOME = process.env.CLAUDE_CONFIG_DIR || path.join(HOME, ".claude");
 const IS_WIN = process.platform === "win32";
 const NODE = process.execPath;
+const DRY = process.argv.includes("--dry-run");
 
 // ---------- pretty output ----------
 const paint = (code, s) => `\x1b[${code}m${s}\x1b[0m`;
 const ok = (s) => console.log(paint("38;2;195;232;141", "  ✓ ") + s);
 const info = (s) => console.log(paint("38;2;130;170;255", "  • ") + s);
 const warn = (s) => console.log(paint("38;2;255;199;119", "  ! ") + s);
+const err = (s) => console.log(paint("1;38;2;255;117;127", "  ✗ ") + s);
 const head = (s) => console.log("\n" + paint("1;38;2;199;146;234", s));
+const plan = (s) => console.log(paint("38;2;134;225;252", "  ~ would ") + s);
 
-// ---------- helpers ----------
-function readJson(p, def) { try { return JSON.parse(fs.readFileSync(p, "utf8")); } catch (e) { return def; } }
-function ensureDir(p) { fs.mkdirSync(p, { recursive: true }); }
+// ---------- fs helpers ----------
+function ensureDir(p) { if (!DRY) fs.mkdirSync(p, { recursive: true }); }
+// Lossy read — fine for OUR own config/example files (absent or bad -> sensible default).
+function readJson(p, def) { try { return JSON.parse(fs.readFileSync(p, "utf8").replace(/^﻿/, "")); } catch (e) { return def; } }
+// Strict read — for the USER's files (settings.json, Windows Terminal). Distinguishes "absent"
+// from "unparseable" so we can FAIL CLOSED and never overwrite a file we couldn't read.
+function readJsonStrict(p) {
+  if (!fs.existsSync(p)) return { absent: true, value: {} };
+  let t;
+  try { t = fs.readFileSync(p, "utf8"); } catch (e) { return { error: e.message, value: null }; }
+  if (t.charCodeAt(0) === 0xFEFF) t = t.slice(1); // strip BOM
+  if (t.trim() === "") return { value: {} };
+  try { return { value: JSON.parse(t) }; } catch (e) { return { error: e.message, value: null }; }
+}
+// Back up ONCE — never clobber an existing pristine backup on re-install / `cockpit update`.
+function backupOnce(p) {
+  const bak = p + ".cockpit-backup";
+  if (fs.existsSync(p) && !fs.existsSync(bak)) { if (DRY) plan(`back up ${p}`); else fs.copyFileSync(p, bak); }
+}
+// Atomic write — write to a temp file then rename, so a crash mid-write can't truncate the live file.
+function writeAtomic(p, data) {
+  if (DRY) { plan(`write ${p}`); return; }
+  ensureDir(path.dirname(p));
+  const tmp = p + ".cockpit-tmp";
+  fs.writeFileSync(tmp, data);
+  fs.renameSync(tmp, p);
+}
+const writeJson = (p, obj) => writeAtomic(p, JSON.stringify(obj, null, 2));
 
 function deepMerge(base, over) {
   if (over === undefined) return base;
@@ -71,8 +101,7 @@ function subst(text) {
 function copyFile(srcPath, destPath, doSubst) {
   let data = fs.readFileSync(srcPath);
   if (doSubst) data = Buffer.from(subst(data.toString("utf8")), "utf8");
-  ensureDir(path.dirname(destPath));
-  fs.writeFileSync(destPath, data);
+  writeAtomic(destPath, data);
 }
 function copyDir(srcDir, destDir, doSubst) {
   if (!fs.existsSync(srcDir)) return 0;
@@ -86,15 +115,17 @@ function copyDir(srcDir, destDir, doSubst) {
 }
 
 // ---------- install ----------
-head("┌ Claude Cockpit — installer");
+head("┌ Claude Cockpit — installer" + (DRY ? "   (dry run — nothing will be written)" : ""));
 info(`Claude config dir : ${CLAUDE_HOME}`);
 info(`Platform          : ${process.platform}`);
 info(`Brand             : ${brand.name}  (credit: ${brand.company})`);
 ensureDir(CLAUDE_HOME);
+// clear any stale clipboard-watcher stop signal left by a previous uninstall
+if (!DRY) { try { fs.unlinkSync(path.join(CLAUDE_HOME, ".cockpit-clip-stop")); } catch (e) {} }
 
 // runtime config + branding (banner & updater read these). Write the MERGED config back so new
 // feature defaults appear over time while the user's saved choices survive every update.
-fs.writeFileSync(path.join(CLAUDE_HOME, "cockpit.config.json"), JSON.stringify(cfg, null, 2));
+writeJson(path.join(CLAUDE_HOME, "cockpit.config.json"), cfg);
 copyDir(path.join(ROOT, "branding"), path.join(CLAUDE_HOME, "branding"), false);
 
 head("Features");
@@ -108,7 +139,7 @@ if (feat.statusline) {
   } else {
     ui = readJson(path.join(SRC, "ui-config.json"), {});
   }
-  fs.writeFileSync(path.join(CLAUDE_HOME, "ui-config.json"), JSON.stringify(ui, null, 2));
+  writeJson(path.join(CLAUDE_HOME, "ui-config.json"), ui);
   ok("Status line — real tokens vs auto-compact, limits, timer, live clock");
 }
 
@@ -131,15 +162,17 @@ if (IS_WIN) {
 // 4) Welcome banner (Windows)
 if (feat.banner && IS_WIN) { copyFile(path.join(SRC, "terminal", "claude-launch.ps1"), path.join(CLAUDE_HOME, "claude-launch.ps1"), true); ok("Welcome banner (your logo + subtle credit)"); }
 
-// 5) File browser configs
+// 5) File browser configs — back up any existing user config ONCE before writing ours
 if (feat.fileBrowser) {
-  copyFile(path.join(SRC, "filekit", "micro-settings.json"), path.join(HOME, ".config", "micro", "settings.json"), false);
+  const microDest = path.join(HOME, ".config", "micro", "settings.json");
   const yaziDir = IS_WIN && process.env.APPDATA ? path.join(process.env.APPDATA, "yazi", "config") : path.join(HOME, ".config", "yazi");
-  copyFile(path.join(SRC, "filekit", "yazi.toml"), path.join(yaziDir, "yazi.toml"), false);
-  ok("File-browser configs (yazi + micro) — install the tools per docs/file-browser.md");
+  const yaziDest = path.join(yaziDir, "yazi.toml");
+  backupOnce(microDest); copyFile(path.join(SRC, "filekit", "micro-settings.json"), microDest, false);
+  backupOnce(yaziDest); copyFile(path.join(SRC, "filekit", "yazi.toml"), yaziDest, false);
+  ok("File-browser configs (yazi + micro) — any existing config backed up to *.cockpit-backup");
 }
 
-// 6) settings.json SAFE-MERGE (never clobbers existing settings / secrets)
+// 6) settings.json SAFE-MERGE (fail-closed: never overwrites a settings.json it can't parse)
 mergeSettings();
 
 // 7) Windows extras (best-effort; skipped in sandbox/CI)
@@ -148,8 +181,8 @@ if (IS_WIN && feat.terminalTheme && !SANDBOX) tryWindowsTerminal();
 if (IS_WIN && feat.clipboardImage && !SANDBOX) tryClipStartup();
 if (SANDBOX) info("Sandbox mode — skipped Windows Terminal + Startup changes.");
 
-head("└ Done.");
-ok(`Installed into ${CLAUDE_HOME}`);
+head("└ Done." + (DRY ? "  (dry run — no changes were made)" : ""));
+ok(`${DRY ? "Would install" : "Installed"} into ${CLAUDE_HOME}`);
 console.log(`
   ${paint("38;2;199;146;234", "Next:")}
     1. ${paint("1", "Restart Claude Code")} (or open a new terminal) — the live status line turns on at startup.
@@ -162,10 +195,20 @@ console.log(`
 
 function mergeSettings() {
   const p = path.join(CLAUDE_HOME, "settings.json");
-  if (fs.existsSync(p)) fs.copyFileSync(p, p + ".cockpit-backup");
-  const s = readJson(p, {});
+  const r = readJsonStrict(p);
+  if (r.error) {
+    err(`Your settings.json could not be parsed: ${r.error}`);
+    warn("ABORTED the settings merge so your file is NOT overwritten. Fix the JSON (or move it aside) and re-run.");
+    warn("Nothing was changed — your settings.json is exactly as you left it.");
+    return;
+  }
+  backupOnce(p);
+  const s = r.value || {};
 
   if (feat.statusline) {
+    if (s.statusLine && !/statusline\.js/i.test(JSON.stringify(s.statusLine))) {
+      warn("Replacing your existing statusLine with Cockpit's — your original is in settings.json.cockpit-backup.");
+    }
     s.statusLine = { type: "command", command: `"${NODE}" "${path.join(CLAUDE_HOME, "statusline.js")}"`, refreshInterval: 1 };
   }
 
@@ -189,9 +232,10 @@ function mergeSettings() {
     if (feat.clipboardImage) addHook("UserPromptSubmit", ps("clip-attach.ps1"));
   }
 
-  ensureDir(CLAUDE_HOME);
-  fs.writeFileSync(p, JSON.stringify(s, null, 2));
-  ok("settings.json merged — your existing settings + secrets preserved (backup: settings.json.cockpit-backup)");
+  writeJson(p, s);
+  ok(r.absent
+    ? "settings.json created (status line + hooks)"
+    : "settings.json merged — your existing settings + secrets preserved (backup: settings.json.cockpit-backup)");
 }
 
 function tryWindowsTerminal() {
@@ -201,18 +245,21 @@ function tryWindowsTerminal() {
     const frag = JSON.parse(subst(fs.readFileSync(fragPath, "utf8")));
     const wt = path.join(process.env.LOCALAPPDATA || "", "Packages", "Microsoft.WindowsTerminal_8wekyb3d8bbwe", "LocalState", "settings.json");
     if (!fs.existsSync(wt)) { warn("Windows Terminal settings not found — skipped theme (you may not use WT)."); return; }
-    fs.copyFileSync(wt, wt + ".cockpit-backup");
-    const s = readJson(wt, {});
+    const r = readJsonStrict(wt);
+    if (r.error) { warn(`Windows Terminal settings couldn't be parsed (${r.error}) — skipped theme, left WT untouched.`); return; }
+    backupOnce(wt);
+    const s = r.value || {};
     // color scheme
     s.schemes = s.schemes || [];
     for (const sc of (frag.schemes || [])) if (!s.schemes.some((x) => x.name === sc.name)) s.schemes.push(sc);
-    // profiles (by guid)
+    // profiles (migrate legacy top-level array form, then add by guid)
+    if (Array.isArray(s.profiles)) s.profiles = { list: s.profiles };
     s.profiles = s.profiles || {}; s.profiles.list = s.profiles.list || [];
     for (const pr of (frag.profiles || [])) if (!s.profiles.list.some((x) => x.guid === pr.guid)) s.profiles.list.push(pr);
     // keybindings (by keys)
     s.keybindings = s.keybindings || [];
     for (const kb of (frag.keybindings || [])) if (!s.keybindings.some((x) => x.keys === kb.keys)) s.keybindings.push(kb);
-    fs.writeFileSync(wt, JSON.stringify(s, null, 4));
+    writeAtomic(wt, JSON.stringify(s, null, 4));
     ok("Windows Terminal theme + Ctrl+Shift+E file browser (profiles added, default unchanged; backup written)");
   } catch (e) { warn("Windows Terminal theme step skipped: " + e.message); }
 }
@@ -223,7 +270,7 @@ function tryClipStartup() {
     if (!fs.existsSync(startup)) return;
     const watcher = path.join(CLAUDE_HOME, "hooks", "clip-watch.ps1");
     const vbs = `Set s = CreateObject("WScript.Shell")\r\ns.Run "powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -STA -File ""${watcher}""", 0, False\r\n`;
-    fs.writeFileSync(path.join(startup, "cockpit-clip-watch.vbs"), vbs);
+    writeAtomic(path.join(startup, "cockpit-clip-watch.vbs"), vbs);
     ok("Clipboard image watcher set to auto-start on login");
   } catch (e) { warn("Clipboard auto-start step skipped: " + e.message); }
 }

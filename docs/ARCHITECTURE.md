@@ -141,13 +141,13 @@ The following components work on Windows, macOS, and Linux:
 - `commands` — plain Markdown slash command files
 - `agents` — plain Markdown subagent files
 - `outputStyles` — plain Markdown style files
-- `safetyGuard` — Node.js hook script
 
 ### Windows-Only Components
 
+- `safetyGuard` — PowerShell `PreToolUse` hook; best-effort blocker of common catastrophic commands (not a hard security boundary)
 - `sounds` — uses Windows TTS / audio APIs
 - `voice` — uses Windows built-in TTS
-- `clipboardImage` — uses Windows clipboard APIs + a background watcher process + a login auto-start registry entry
+- `clipboardImage` — uses Windows clipboard APIs + a background watcher process + a Startup folder auto-start entry
 - `banner` — PowerShell terminal banner
 - `terminalTheme` — Windows Terminal JSON fragment
 - `fileBrowser` — yazi + micro config files (cross-platform tools, but the integration is currently Windows-focused)

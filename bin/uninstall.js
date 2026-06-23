@@ -33,6 +33,9 @@ if (fs.existsSync(wt + ".cockpit-backup")) {
   try { fs.copyFileSync(wt + ".cockpit-backup", wt); ok("Restored Windows Terminal settings from backup"); } catch (e) {}
 }
 
+// Signal a running clipboard watcher to stop (it checks this flag each loop, then exits + releases its mutex)
+try { fs.writeFileSync(path.join(CLAUDE_HOME, ".cockpit-clip-stop"), "stop"); } catch (e) {}
+
 // 3) Remove installed component files (only the ones cockpit ships)
 ["statusline.js", "ui-config.json", "cockpit.config.json", "claude-launch.ps1"].forEach((f) => rm(path.join(CLAUDE_HOME, f)));
 rm(path.join(CLAUDE_HOME, "branding"));

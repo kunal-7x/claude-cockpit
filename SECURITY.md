@@ -92,11 +92,13 @@ For a full explanation of what the installer reads and writes, the safe-merge gu
 Short version:
 
 - **Zero telemetry.** No analytics, no crash reporting, no usage tracking. Ever.
-- **One network call.** Only `cockpit update` makes an outbound connection (a `git pull` to GitHub over HTTPS). Normal operation is fully offline.
-- **Safe-merge, not overwrite.** Your `settings.json`, API tokens, and existing hooks are never replaced — only cockpit's own keys are added, idempotently.
+- **Minimal network access.** Only the initial install (git clone) and `cockpit update` (git pull) make outbound connections. `cockpit configure` and all normal runtime operation are fully offline.
+- **Safe-merge, not overwrite.** Your `settings.json`, API tokens, and existing hooks are never replaced — only cockpit's own keys are added, idempotently. Note: the `statusLine` key is always kept in sync with your cockpit config on update; your original is preserved in the `.cockpit-backup`.
 - **Backup before every merge.** A verbatim copy of `settings.json` is saved to `settings.json.cockpit-backup` before any modification.
 - **Short, readable hooks.** No obfuscation, no minification. Every hook is a standalone script you can read and understand in minutes.
 - **No bundled third-party dependencies** in the install path — only Node.js built-ins.
+- **Cockpit does not modify your `CLAUDE.md`.**
+- **Safety guard is Windows-only and best-effort** — it blocks common catastrophic command patterns but is not a hard security sandbox.
 
 ---
 

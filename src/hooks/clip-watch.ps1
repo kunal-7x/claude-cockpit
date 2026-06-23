@@ -4,10 +4,24 @@
 # clipboard alongside the image. Compression controlled by ui-config.json.
 $ErrorActionPreference = 'SilentlyContinue'
 $log = Join-Path $env:USERPROFILE ".claude\clip-watch.log"
-function Log($m) { try { Add-Content -Path $log -Value ("{0}  {1}" -f (Get-Date -Format 'HH:mm:ss'), $m) -Encoding utf8 } catch {} }
+$LOG_MAX_BYTES = 256KB
+function Log($m) {
+  try {
+    # Cap log at ~256 KB — trim to last 50 lines before appending
+    if ((Test-Path $log) -and (Get-Item $log).Length -gt $LOG_MAX_BYTES) {
+      $tail = Get-Content $log -Tail 50 -Encoding utf8 -ErrorAction SilentlyContinue
+      $header = "# log trimmed $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') (exceeded 256 KB)"
+      ($header + "`n" + ($tail -join "`n")) | Set-Content $log -Encoding utf8 -ErrorAction SilentlyContinue
+    }
+    Add-Content -Path $log -Value ("{0}  {1}" -f (Get-Date -Format 'HH:mm:ss'), $m) -Encoding utf8
+  } catch {}
+}
 
 $mutex = New-Object System.Threading.Mutex($false, "ClaudeCockpitClipWatch")
 if (-not $mutex.WaitOne(0)) { Log "another instance running - exit"; exit }
+
+# Stop-flag path — cockpit uninstall drops this file to signal a clean exit
+$stopFlag = Join-Path $env:USERPROFILE ".claude\.cockpit-clip-stop"
 
 try { Add-Type -AssemblyName System.Windows.Forms } catch { Log "WinForms load FAIL: $_"; exit }
 try { Add-Type -AssemblyName System.Drawing } catch { Log "Drawing load FAIL: $_" }
@@ -19,7 +33,30 @@ $clipDir = Join-Path $env:USERPROFILE ".claude\clipboard"
 if (-not (Test-Path $clipDir)) { New-Item -ItemType Directory -Path $clipDir -Force | Out-Null }
 $cfgPath = Join-Path $env:USERPROFILE ".claude\ui-config.json"
 
+# Retention: track when we last ran cleanup (~hourly)
+$lastCleanup = [DateTime]::MinValue
+
 while ($true) {
+  # --- STOP FLAG CHECK ---
+  try {
+    if (Test-Path $stopFlag) {
+      Remove-Item $stopFlag -Force -ErrorAction SilentlyContinue
+      Log "stop flag detected — exiting cleanly"
+      break
+    }
+  } catch {}
+
+  # --- RETENTION: delete PNGs older than 7 days, at most once per hour ---
+  try {
+    if (([DateTime]::UtcNow - $lastCleanup).TotalHours -ge 1) {
+      $cutoff = (Get-Date).AddDays(-7)
+      Get-ChildItem -Path $clipDir -Filter '*.png' -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.LastWriteTime -lt $cutoff } |
+        ForEach-Object { Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue; Log "purged old file: $($_.Name)" }
+      $lastCleanup = [DateTime]::UtcNow
+    }
+  } catch { Log "retention cleanup error: $_" }
+
   try {
     if ([System.Windows.Forms.Clipboard]::ContainsImage()) {
       $already = $false
@@ -72,3 +109,7 @@ while ($true) {
   } catch { Log "loop error: $_" }
   Start-Sleep -Milliseconds 700
 }
+
+# Release the mutex so a fresh instance can start immediately after a clean stop
+try { $mutex.ReleaseMutex() } catch {}
+Log "watcher STOPPED"

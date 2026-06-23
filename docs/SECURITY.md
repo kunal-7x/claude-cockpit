@@ -35,25 +35,34 @@ This document is the authoritative reference for how Claude Cockpit interacts wi
 |------|----------------|
 | `~/.cockpit/` | Full clone of this repo (source of truth for all cockpit files) |
 | `~/.claude/cockpit.config.json` | Copied from `config.example.json`; you edit this to configure cockpit |
-| `~/.claude/settings.json` | **Safe-merged** (see §2) — never replaced wholesale |
-| `~/.claude/settings.json.cockpit-backup` | Verbatim snapshot of your settings.json taken immediately before the first merge |
-| `~/.claude/CLAUDE.md` | Cockpit's instructions block is appended (clearly delimited, never overwrites your own content) |
-| `~/.claude/hooks/` | Individual hook files (one per enabled feature; see §7) |
-| `~/.claude/commands/` | The 18 slash-command `.md` files (only if `commands` feature is enabled) |
+| `~/.claude/settings.json` | **Safe-merged** (see §2) — never replaced wholesale. Note: the `statusLine` key is always (re)set on install/update to stay in sync with your cockpit config; if you had your own `statusLine` block it is replaced. Your original is preserved in the `.cockpit-backup`. |
+| `~/.claude/settings.json.cockpit-backup` | Verbatim snapshot of your settings.json taken immediately before the first merge (overwritten once per install/update — restore this file to undo any merge) |
+| `~/.claude/statusline.js` | Status line renderer script |
+| `~/.claude/ui-config.json` | Status line display config |
+| `~/.claude/hooks/*.ps1` | Individual hook files (one per enabled Windows feature; see §7) |
+| `~/.claude/claude-launch.ps1` | Claude Code launch wrapper (Windows) |
+| `~/.claude/commands/` | The 20 slash-command `.md` files (only if `commands` feature is enabled) |
 | `~/.claude/branding/logo.txt` | Default ASCII logo (only if `banner` feature is enabled; replace freely) |
 | `~/.claude/agents/explainer.md` | Explainer subagent definition (only if `agents` feature is enabled) |
-| Windows Terminal `settings.json` | Cockpit Night color scheme + profile entry added (only if `terminalTheme` is enabled; a `.cockpit-backup` copy is written first) |
-| `HKCU:\...\Run` registry key | A single auto-start entry for the clipboard image watcher (only if `clipboardImage` is enabled) |
+| `~/.claude/output-styles/` | Output style files (only if `outputStyles` feature is enabled) |
+| `~/.config/micro/settings.json` | micro editor config (only if `fileBrowser` is enabled; existing file backed up to `*.cockpit-backup` first) |
+| `%APPDATA%\yazi\config\yazi.toml` (Windows) or `~/.config/yazi/yazi.toml` (macOS/Linux) | yazi file browser config (only if `fileBrowser` is enabled; existing file backed up to `*.cockpit-backup` first) |
+| Windows Terminal `settings.json` | Cockpit Night color scheme + profile entry + `Ctrl+Shift+E` keybinding added (only if `terminalTheme` is enabled; backed up to `.cockpit-backup` first; your default profile is not changed) |
+| `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\cockpit-clip-watch.vbs` | VBScript auto-start entry for the clipboard image watcher (only if `clipboardImage` is enabled; this is a Startup folder entry, **not** a registry `Run` key) |
+
+**PATH:** The bootstrap (`install.ps1`) appends `~/.cockpit` to the per-user `PATH` environment variable so the `cockpit` command is available globally. This is a one-time, persistent change to your user PATH.
+
+**Logs:** Hooks may write small log files under `~/.claude/` (e.g. `sound.log`). Clipboard images captured by the watcher are saved under `~/.claude/clipboard/` and are automatically pruned after 7 days.
 
 ### Writes (subsequent `cockpit update`)
 
-`cockpit update` runs a `git pull` inside `~/.cockpit/`, then re-runs `bin/install.js` with your existing `cockpit.config.json`. Only cockpit-owned files are touched. Your config, your own CLAUDE.md content, and your Claude API tokens are never modified.
+`cockpit update` runs a `git pull` inside `~/.cockpit/`, then re-runs `bin/install.js` with your existing `cockpit.config.json`. Only cockpit-owned files are touched. Your config and your Claude API tokens are never modified. Hook registrations are added idempotently — pre-existing identical hooks are not duplicated.
 
 ### What the installer never touches
 
 - Your Claude API key or any environment variable holding a secret
-- Any file outside `~/.claude/`, `~/.cockpit/`, Windows Terminal settings, and the single registry run-key listed above
-- Your shell profile (`.bashrc`, `.zshrc`, PowerShell profile) — PATH is extended only for the current session during install; a one-time PATH edit is printed for you to add permanently if you want `cockpit` on PATH globally
+- Your `CLAUDE.md` file (cockpit does **not** append to it)
+- Any file outside `~/.claude/`, `~/.cockpit/`, Windows Terminal settings, the Startup folder entry, micro/yazi config dirs, and the per-user PATH listed above
 
 ---
 
@@ -72,7 +81,13 @@ This document is the authoritative reference for how Claude Cockpit interacts wi
 
 `cockpit uninstall` reads the backup and restores it, then removes all cockpit-owned files.
 
-**Audit the merge yourself:** the function is `safeMergeSettings()` in `bin/install.js`. It is intentionally short and commented.
+**Audit the merge yourself:** the function is `mergeSettings()` in `bin/install.js`. It is intentionally short and commented. To preview all planned writes without making any changes, run:
+
+```bash
+node bin/install.js --dry-run
+```
+
+This prints every file that would be written and exits without modifying anything.
 
 ---
 
@@ -100,13 +115,13 @@ The only hits you will find are in `install.sh` / `install.ps1` (the bootstrap t
 
 **Normal operation (no update running):** zero network calls. The status line, all hooks, all slash commands, and the clipboard watcher run entirely offline.
 
-**`cockpit update` / `cockpit configure` (explicitly user-initiated):**
+**`cockpit update` (explicitly user-initiated):**
 
 | Call | To | What it does |
 |------|----|-------------|
 | `git pull` | `github.com/kunal-7x/claude-cockpit` | Fetches the latest commits over HTTPS. No authentication; public repo. |
 
-That is the complete list. No other outbound connections are made at any time.
+That is the complete list. No other outbound connections are made at any time. In particular, `cockpit configure` makes **no network calls** — it is a local interactive menu that edits `cockpit.config.json` only.
 
 If you run Claude Cockpit in an air-gapped or locked-down environment, simply never run `cockpit update` and disable outbound HTTPS to GitHub — everything else continues to work from the local `~/.cockpit/` clone.
 
@@ -195,10 +210,10 @@ The codebase is small by design. A thorough audit takes under an hour.
 
 1. Clone the repo: `git clone https://github.com/kunal-7x/claude-cockpit.git`
 2. Read `install.ps1` / `install.sh` — confirm they only install Node and clone the repo.
-3. Read `bin/install.js` — confirm `safeMergeSettings()` and the file copy list.
+3. Read `bin/install.js` — confirm `mergeSettings()` and the file copy list.
 4. Read each hook file — confirm no network calls, no data exfiltration.
 5. Run `grep -r "http\|fetch\|curl\|Invoke-Web" .` to spot any outbound calls.
-6. Run the installer with `--dry-run` (if available) or inspect `cockpit.config.json` after install before enabling any feature.
+6. Run the installer in dry-run mode to preview all planned writes before any change is made: `node bin/install.js --dry-run`
 
 ---
 
@@ -241,21 +256,21 @@ Claude Code hooks are scripts that run at defined points in Claude's turn lifecy
 **Trigger:** Stop (after Claude's turn) and PromptForInput (when Claude requests permission).
 
 **What it does:**
-- Stop: reads the last line of Claude's response from the environment and passes it to the Windows `System.Speech.Synthesis.SpeechSynthesizer` COM object (built-in, no install required).
+- Stop: reads the **tail of the Claude transcript file** (the path is provided by Claude Code in the hook's stdin JSON) to extract the last assistant message, then passes it to the Windows `System.Speech.Synthesis.SpeechSynthesizer` COM object (built-in, no install required).
 - PromptForInput: speaks a fixed string: "Claude needs your permission."
 
-**Data touched:** reads Claude's response text from the environment variables Claude Code provides. No data is stored or transmitted.
+**Data touched:** reads a local Claude transcript file (path provided by Claude Code). No data is stored or transmitted.
 
 ### `clipboardWatcher.ps1` — Background process (autostart)
 
-**Trigger:** started at Windows login via a `HKCU:\...\Run` registry entry (only when `clipboardImage` is enabled).
+**Trigger:** started at Windows login via a VBScript file placed in the Windows Startup folder (`%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\cockpit-clip-watch.vbs`). This is **not** a registry `Run` key.
 
 **What it does:**
 - Polls the Windows clipboard every 500 ms for image content.
-- When an image is detected: saves it to a temp file, downscales it if it exceeds the token-budget threshold (to reduce input tokens), and writes the file path to a well-known location that Claude Code reads when you paste in the terminal.
+- When an image is detected: saves it to `~/.claude/clipboard/`, downscales it if it exceeds the token-budget threshold (to reduce input tokens), and writes the file path to a well-known location that Claude Code reads when you paste in the terminal.
 - The watcher process runs entirely locally. No images leave your machine.
 
-**Data touched:** clipboard image data (local only). Temp files are written to `%TEMP%\cockpit-clipboard\` and cleaned up after each paste.
+**Data touched:** clipboard image data (local only). Image files are saved under `~/.claude/clipboard/` and are automatically pruned after **7 days**.
 
 ### Banner hook — SessionStart hook
 
@@ -304,11 +319,11 @@ The only external runtime dependency is **Node.js >= 16**, which you install sep
 | Slash commands | Cross-platform | None — Markdown files |
 | Agents | Cross-platform | None — Markdown files |
 | Sounds | Windows only | Windows system sound API (built-in) |
-| Voice | Windows only | Windows Speech API (built-in) |
-| Clipboard image | Windows only | Clipboard API + temp file write + one registry Run key |
+| Voice | Windows only | Windows Speech API (built-in) + local transcript file read |
+| Clipboard image | Windows only | Clipboard API + `~/.claude/clipboard/` writes (pruned after 7 days) + Startup folder VBS entry |
 | Banner | Windows only | File read (logo.txt) |
 | Terminal theme | Windows only | Windows Terminal settings.json write |
-| Safety guard | Cross-platform | Read-only env var inspection |
+| Safety guard | Windows only | PowerShell hook — best-effort blocker, not a hard security boundary |
 
 Features not listed for your platform are simply not installed — the installer checks `process.platform` and skips them silently.
 

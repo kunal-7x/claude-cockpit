@@ -18,7 +18,7 @@ All 11 features are controlled by boolean keys in `~/.claude/cockpit.config.json
 | 8 | [Commands](#8-commands) | `commands` | Cross-platform | Node.js >= 16 |
 | 9 | [Agents](#9-agents) | `agents` | Cross-platform | Node.js >= 16 |
 | 10 | [Output Styles](#10-output-styles) | `outputStyles` | Cross-platform | Node.js >= 16 |
-| 11 | [Safety Guard](#11-safety-guard) | `safetyGuard` | Cross-platform | Node.js >= 16 |
+| 11 | [Safety Guard](#11-safety-guard) | `safetyGuard` | Windows-only | Node.js >= 16 |
 
 ---
 
@@ -220,7 +220,7 @@ Installs configuration for `yazi` (a terminal file manager) and `micro` (a termi
 
 ## 8. Commands
 
-Installs 19 slash commands that are available inside Claude Code. These cover common workflows so you do not need to remember long prompts.
+Installs 20 slash commands that are available inside Claude Code. These cover common workflows so you do not need to remember long prompts.
 
 | Command | What it does |
 |---------|-------------|
@@ -243,6 +243,7 @@ Installs 19 slash commands that are available inside Claude Code. These cover co
 | `/normal` | Reset to default output mode |
 | `/paste` | Paste an image from the clipboard so Claude can see it |
 | `/dashboard` | Open the project dashboard |
+| `/cockpit` | Manage and update Claude Cockpit (run `cockpit update`, configure features) |
 
 ### Config key
 
@@ -313,8 +314,10 @@ A `PreToolUse` hook that intercepts and blocks catastrophic commands before they
 "features": { "safetyGuard": true }
 ```
 
-**Platform:** Cross-platform (the hook logic is portable; PowerShell Core is available on macOS/Linux)
+**Platform:** Windows-only (the hook is implemented as a PowerShell script)
 **Requirement:** None beyond the platform
+
+> **Note:** Safety Guard is best-effort, not a hard security boundary. It blocks common catastrophic command patterns but is not a comprehensive sandbox. Do not rely on it as your sole protection against destructive operations.
 
 ---
 
