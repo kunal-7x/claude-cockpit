@@ -99,8 +99,18 @@ function subst(text) {
     .split("{{COMPANY}}").join(brand.company);
 }
 function copyFile(srcPath, destPath, doSubst) {
-  let data = fs.readFileSync(srcPath);
-  if (doSubst) data = Buffer.from(subst(data.toString("utf8")), "utf8");
+  // PowerShell 5.1 reads a BOM-less UTF-8 .ps1 as ANSI and mangles any non-ASCII char
+  // (e.g. an em dash), which can break string parsing. So always write .ps1 with a UTF-8 BOM.
+  const isPs1 = destPath.toLowerCase().endsWith(".ps1");
+  let data;
+  if (doSubst || isPs1) {
+    let text = fs.readFileSync(srcPath, "utf8").replace(/^﻿/, ""); // drop any existing BOM
+    if (doSubst) text = subst(text);
+    if (isPs1) text = "﻿" + text; // prepend UTF-8 BOM for PowerShell
+    data = Buffer.from(text, "utf8");
+  } else {
+    data = fs.readFileSync(srcPath);
+  }
   writeAtomic(destPath, data);
 }
 function copyDir(srcDir, destDir, doSubst) {
