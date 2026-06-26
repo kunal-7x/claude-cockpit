@@ -1,33 +1,31 @@
-# UserPromptSubmit hook: if a NEW image is in the clipboard, auto-save it and
-# tell Claude to read it. Runs every message but fast-exits when there's no image.
+# UserPromptSubmit hook — attach a clipboard image ONLY when the user actually pasted it.
+# clip-watch saves each new clipboard image and puts its file PATH on the clipboard, so pressing
+# Ctrl+V drops that path into the prompt. We attach an image ONLY when such a path is present in the
+# submitted prompt. We do NOT read the clipboard here — doing that made screenshots auto-attach to
+# every message (and every other open session) with no paste at all.
 $ErrorActionPreference = 'SilentlyContinue'
-try { $null = [Console]::In.ReadToEnd() } catch {}
+$raw = ''
+try { $raw = [Console]::In.ReadToEnd() } catch {}
 
-$img = $null
-try { $img = Get-Clipboard -Format Image } catch {}
-if (-not $img) { exit 0 }   # no image -> nothing to do (fast path)
+# Pull the prompt text from the hook's stdin JSON (fall back to the raw text).
+$prompt = ''
+try { $j = $raw | ConvertFrom-Json; if ($j.prompt) { $prompt = [string]$j.prompt } } catch {}
+if (-not $prompt) { $prompt = $raw }
+if (-not $prompt) { exit 0 }
 
+# Only clip-watch produces these paths; their presence in the prompt means an explicit Ctrl+V paste.
 $clipDir = Join-Path $env:USERPROFILE ".claude\clipboard"
-$stateFile = Join-Path $clipDir ".lasthash"
-try {
-  Add-Type -AssemblyName System.Drawing
-  if (-not (Test-Path $clipDir)) { New-Item -ItemType Directory -Path $clipDir -Force | Out-Null }
-  $ms = New-Object System.IO.MemoryStream
-  $img.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
-  $bytes = $ms.ToArray(); $ms.Dispose()
+$pattern = [Regex]::Escape($clipDir) + '[\\/][^\s"'']+\.png'
+$found = [Regex]::Matches($prompt, $pattern)
+if ($found.Count -eq 0) { exit 0 }   # nothing pasted -> do nothing (no auto-attach)
 
-  # Hash so the SAME image isn't attached again on later messages.
-  $sha = [System.Security.Cryptography.SHA1]::Create()
-  $key = ([System.BitConverter]::ToString($sha.ComputeHash($bytes)) -replace '-', '').Substring(0, 16)
-  $last = ''
-  if (Test-Path $stateFile) { $last = (Get-Content $stateFile -Raw).Trim() }
-
-  if ($key -ne $last) {
-    $path = Join-Path $clipDir "clip-$key.png"
-    [System.IO.File]::WriteAllBytes($path, $bytes)
-    Set-Content -Path $stateFile -Value $key -NoNewline
-    Write-Output "[clipboard image] The user has an image in their clipboard; it was auto-saved to: $path"
-    Write-Output "ACTION: Use the Read tool on that exact path now to view the image, then address what the user is asking about it."
+$seen = @{}
+foreach ($m in $found) {
+  $p = $m.Value
+  if ($seen.ContainsKey($p)) { continue }
+  $seen[$p] = $true
+  if (Test-Path $p) {
+    Write-Output "[pasted image] The user pasted an image. Read it now with the Read tool at this exact path: $p"
   }
-} catch {}
+}
 exit 0
